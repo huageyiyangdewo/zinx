@@ -47,6 +47,7 @@ func (s *Server) Start()  {
 		}
 
 		// 3.2 todo Server.Start() 设置服务器最大连接控制，如果超过最大连接，那么关闭此连接
+
 		// 3.3 todo Server.Start() 处理该新连接请求的 业务 方法，此时应该有 handler 和 conn 是绑定的
 
 		// 我们这里暂时做一个最大512 字节的回显服务

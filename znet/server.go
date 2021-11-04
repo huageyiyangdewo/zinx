@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"zinx/ziface"
@@ -16,6 +17,18 @@ type Server struct {
 	IP string
 	// 服务器端口
 	Port int
+}
+
+// CallbackToClient 定义当前客户端链接的handle api
+func CallbackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+	// 回显业务
+	fmt.Println("[Conn handle] CallbackToClient ...")
+	if _, err := conn.Write(data[:cnt]); err != nil {
+		fmt.Println("write back buf err: ", err)
+		return errors.New("CallbackToClient error")
+	}
+
+	return nil
 }
 
 
@@ -36,11 +49,13 @@ func (s *Server) Start()  {
 		fmt.Println("listen: ", s.IPVersion, "err: ", err)
 	}
 	fmt.Println("start Zinx server ", s.Name, "succ, now listening...")
+	var cid uint32
+	cid = 0
 
 	// 3 启动Server网络连接业务
 	for  {
 		// 3.1 阻塞等待客服端连接
-		conn, err := listener.Accept()
+		conn, err := listener.AcceptTCP()
 		if err != nil {
 			fmt.Println("Accept err: ", err)
 			continue
@@ -48,22 +63,12 @@ func (s *Server) Start()  {
 
 		// 3.2 todo Server.Start() 设置服务器最大连接控制，如果超过最大连接，那么关闭此连接
 
-		// 3.3 todo Server.Start() 处理该新连接请求的 业务 方法，此时应该有 handler 和 conn 是绑定的
+		// 3.3 处理该新连接请求的 业务 方法，此时应该有 handler 和 conn 是绑定的
+		dealConn := NewConnection(conn, cid, CallbackToClient)
+		cid++
 
 		// 我们这里暂时做一个最大512 字节的回显服务
-		for  {
-			buf := make([]byte, 512)
-			cnt, err := conn.Read(buf)
-			if err != nil {
-				fmt.Println("recv buf err ", err)
-				continue
-			}
-
-			if _, err := conn.Write(buf[:cnt]); err != nil {
-				fmt.Println("write back buf err ", err)
-				continue
-			}
-		}
+		go dealConn.Start()
 
 	}
 }

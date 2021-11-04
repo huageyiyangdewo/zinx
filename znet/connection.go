@@ -18,6 +18,7 @@ type Connection struct {
 
 	// 该连接的处理方式api
 	handleAPI ziface.HandleFunc
+
 	// 告知该连接已经停止/退出 的 channel
 	ExitBuffChan chan bool
 }
@@ -107,5 +108,5 @@ func (c *Connection) GetConnID() uint32 {
 
 // RemoteAddr 获取远程客户端地址信息
 func (c *Connection) RemoteAddr() net.Addr {
-	return c.RemoteAddr()
+	return c.Conn.RemoteAddr()
 }

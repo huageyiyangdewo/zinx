@@ -27,12 +27,12 @@ type Connection struct {
 }
 
 // NewConnection 创建连接的方法
-func NewConnection(conn *net.TCPConn, connID uint32, callbackApi ziface.HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
 	c := &Connection{
 		Conn: conn,
 		ConnID: connID,
 		IsClosed: false,
-		handleAPI: callbackApi,
+		Router: router,
 		ExitBuffChan: make(chan bool, 1),
 	}
 	return c
@@ -62,6 +62,7 @@ func (c *Connection) StartReader()  {
 
 		// 从路由 Routers 中找到 注册绑定Conn 的对应Handle
 		go func(request ziface.IRequest) {
+			// 模板设计模式
 			c.Router.PreHandle(request)
 			c.Router.Handle(request)
 			c.Router.PostHandle(request)

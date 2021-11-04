@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"zinx/utils"
 	"zinx/ziface"
 )
 
@@ -37,7 +38,11 @@ func CallbackToClient(conn *net.TCPConn, data []byte, cnt int) error {
 
 // Start 开启服务
 func (s *Server) Start()  {
-	fmt.Printf("[Start] Server listener at IP:%s, Port:%s, is starting \n", s.IP, s.Port)
+	fmt.Printf("[START] Server name: %s,listenner at IP: %s, Port %d is starting\n", s.Name, s.IP, s.Port)
+	fmt.Printf("[Zinx] Version: %s, MaxConn: %d,  MaxPacketSize: %d\n",
+		utils.GlobalObject.Version,
+		utils.GlobalObject.MaxConn,
+		utils.GlobalObject.MaxPacketSize)
 
 	// 1 获取一个tcp的addr
 	addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
@@ -70,7 +75,7 @@ func (s *Server) Start()  {
 		dealConn := NewConnection(conn, cid, s.Router)
 		cid++
 
-		// 我们这里暂时做一个最大512 字节的回显服务
+		// 我们这里暂时做一个回显服务
 		go dealConn.Start()
 
 	}
@@ -97,12 +102,12 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 }
 
 // NewServer 创建一个 服务器句柄
-func NewServer(Name string) ziface.IServer {
+func NewServer() ziface.IServer {
 	s := &Server{
-		Name: Name,
+		Name: utils.GlobalObject.Name,
 		IPVersion: "tcp4",
-		IP: "0.0.0.0",
-		Port: 8999,
+		IP: utils.GlobalObject.Host,
+		Port: utils.GlobalObject.TcpPort,
 		Router: nil,
 	}
 

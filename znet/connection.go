@@ -21,6 +21,9 @@ type Connection struct {
 
 	// 告知该连接已经停止/退出 的 channel
 	ExitBuffChan chan bool
+
+	// 该连接的处理方法 router
+	Router ziface.IRouter
 }
 
 // NewConnection 创建连接的方法
@@ -44,19 +47,26 @@ func (c *Connection) StartReader()  {
 	for {
 		// 读取数据到buf中
 		buf := make([]byte, 512)
-		cnt, err := c.Conn.Read(buf)
+		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("recv buf err: ", err)
 			continue
 		}
 
 
-		// 调用当前链接业务，执行 handle 方法
-		if err = c.handleAPI(c.Conn, buf, cnt); err != nil {
-			fmt.Println("connID ", c.ConnID, " handle is error ", err)
-			c.ExitBuffChan <- true
-			break
+		// 得到当前客户端请求的 request 数据
+		req := Request{
+			conn: c,
+			data: buf,
 		}
+
+		// 从路由 Routers 中找到 注册绑定Conn 的对应Handle
+		go func(request ziface.IRequest) {
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
+		}(&req)
+
 	}
 }
 

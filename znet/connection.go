@@ -1,9 +1,10 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
-	"zinx/utils"
 	"zinx/ziface"
 )
 
@@ -46,19 +47,39 @@ func (c *Connection) StartReader()  {
 	defer c.Stop()
 
 	for {
-		// 读取数据到buf中
-		buf := make([]byte, utils.GlobalObject.MaxPacketSize)
-		_, err := c.Conn.Read(buf)
-		if err != nil {
-			fmt.Println("recv buf err: ", err)
+		// 创建拆包解包的对象
+		dp := NewDataPack()
+		// 读取客户端的msg head
+		dataHead := make([]byte, dp.GetHeadLen())
+		if _, err := io.ReadFull(c.Conn, dataHead); err != nil {
+			fmt.Println("read msg head error: ", err)
 			continue
 		}
 
+		//拆包，得到msgid 和 datalen 放在msg中
+		msg, err := dp.Unpack(dataHead)
+		if err != nil {
+			fmt.Println("unpack error: ", err)
+			c.ExitBuffChan <- true
+			continue
+		}
+
+		//根据 dataLen 读取 data，放在msg.Data中
+		var data []byte
+		if msg.GetDataLen() > 0 {
+			data = make([]byte, msg.GetDataLen())
+			if _, err := io.ReadFull(c.Conn, data); err != nil {
+				fmt.Println("read msg data error: ", err)
+				c.ExitBuffChan <- true
+				continue
+			}
+		}
+		msg.SetData(data)
 
 		// 得到当前客户端请求的 request 数据
 		req := Request{
 			conn: c,
-			data: buf,
+			msg: msg,
 		}
 
 		// 从路由 Routers 中找到 注册绑定Conn 的对应Handle
@@ -70,6 +91,30 @@ func (c *Connection) StartReader()  {
 		}(&req)
 
 	}
+}
+
+
+//SendMsg 直接将Message数据发送数据给远程的TCP客户端
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.IsClosed {
+		return errors.New("Connection closed when send msg ")
+	}
+
+	dp := NewDataPack()
+	msg, err := dp.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		fmt.Println("Pack error msg id = ", msgId)
+		return  errors.New("Pack error msg ")
+	}
+
+
+	if _, err := c.Conn.Write(msg); err != nil {
+		fmt.Println("Write msg id ", msgId, " error ")
+		c.ExitBuffChan <- true
+		return errors.New("conn Write error")
+	}
+
+	return nil
 }
 
 

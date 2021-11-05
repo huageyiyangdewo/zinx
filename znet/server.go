@@ -1,7 +1,6 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"zinx/utils"
@@ -19,20 +18,8 @@ type Server struct {
 	// 服务器端口
 	Port int
 
-	// 当前Server由用户绑定的回调 router,也就是 Server 注册的链接对应的处理业务
-	Router ziface.IRouter
-}
-
-// CallbackToClient 定义当前客户端链接的handle api
-func CallbackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-	// 回显业务
-	fmt.Println("[Conn handle] CallbackToClient ...")
-	if _, err := conn.Write(data[:cnt]); err != nil {
-		fmt.Println("write back buf err: ", err)
-		return errors.New("CallbackToClient error")
-	}
-
-	return nil
+	// 当前Server的消息管理模块，用来绑定MsgId和对应的处理方法
+	msgHandler ziface.IMsgHandler
 }
 
 
@@ -72,7 +59,7 @@ func (s *Server) Start()  {
 		// 3.2 todo Server.Start() 设置服务器最大连接控制，如果超过最大连接，那么关闭此连接
 
 		// 3.3 处理该新连接请求的 业务 方法，此时应该有 handler 和 conn 是绑定的
-		dealConn := NewConnection(conn, cid, s.Router)
+		dealConn := NewConnection(conn, cid, s.msgHandler)
 		cid++
 
 		// 我们这里暂时做一个回显服务
@@ -97,8 +84,8 @@ func (s *Server) Serve()  {
 }
 
 
-func (s *Server) AddRouter(router ziface.IRouter) {
-	s.Router = router
+func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
+	s.msgHandler.AddRouter(msgId, router)
 }
 
 // NewServer 创建一个 服务器句柄
@@ -108,7 +95,7 @@ func NewServer() ziface.IServer {
 		IPVersion: "tcp4",
 		IP: utils.GlobalObject.Host,
 		Port: utils.GlobalObject.TcpPort,
-		Router: nil,
+		msgHandler: NewMsgHandler(),
 	}
 
 	return s

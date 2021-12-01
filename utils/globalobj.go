@@ -27,6 +27,10 @@ type GlobalObj struct {
 	MaxPacketSize uint32
 	//当前服务器主机允许的最大链接个数
 	MaxConn int
+	// 工作池的数量
+	WorkPoolSize uint32
+	// 业务工作 worker 对应负责的任务队列最大任务存储数量
+	MaxWorkerTaskLen uint32
 }
 
 var GlobalObject *GlobalObj
@@ -53,9 +57,11 @@ func init()  {
 		Host: "0.0.0.0",
 		MaxConn: 1000,
 		MaxPacketSize: 4096,
+		WorkPoolSize: 10,
+		MaxWorkerTaskLen: 1024,
 	}
 
 	// 从配置文件中加载一些用户配置的参数
-	//GlobalObject.Reload()
+	GlobalObject.Reload()
 }
 

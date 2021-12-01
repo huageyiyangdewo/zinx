@@ -31,41 +31,47 @@ func (s *Server) Start()  {
 		utils.GlobalObject.MaxConn,
 		utils.GlobalObject.MaxPacketSize)
 
-	// 1 获取一个tcp的addr
-	addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
-	if err != nil {
-		fmt.Println("resolve tcp addr err: ", err)
-		return
-	}
+	go func() {
+		// 0 启动worker工作机制
+		s.msgHandler.StartWorkerPool()
 
-	// 2 监听服务器地址
-	listener, err := net.ListenTCP(s.IPVersion, addr)
-	if err != nil {
-		fmt.Println("listen: ", s.IPVersion, "err: ", err)
-	}
-	fmt.Println("start Zinx server ", s.Name, "succ, now listening...")
-	var cid uint32
-	cid = 0
-
-	// 3 启动Server网络连接业务
-	for  {
-		// 3.1 阻塞等待客服端连接
-		conn, err := listener.AcceptTCP()
+		// 1 获取一个tcp的addr
+		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
-			fmt.Println("Accept err: ", err)
-			continue
+			fmt.Println("resolve tcp addr err: ", err)
+			return
 		}
 
-		// 3.2 todo Server.Start() 设置服务器最大连接控制，如果超过最大连接，那么关闭此连接
+		// 2 监听服务器地址
+		listener, err := net.ListenTCP(s.IPVersion, addr)
+		if err != nil {
+			fmt.Println("listen: ", s.IPVersion, "err: ", err)
+		}
+		fmt.Println("start Zinx server ", s.Name, "succ, now listening...")
+		var cid uint32
+		cid = 0
 
-		// 3.3 处理该新连接请求的 业务 方法，此时应该有 handler 和 conn 是绑定的
-		dealConn := NewConnection(conn, cid, s.msgHandler)
-		cid++
+		// 3 启动Server网络连接业务
+		for  {
+			// 3.1 阻塞等待客服端连接
+			conn, err := listener.AcceptTCP()
+			if err != nil {
+				fmt.Println("Accept err: ", err)
+				continue
+			}
 
-		// 我们这里暂时做一个回显服务
-		go dealConn.Start()
+			// 3.2 todo Server.Start() 设置服务器最大连接控制，如果超过最大连接，那么关闭此连接
 
-	}
+			// 3.3 处理该新连接请求的 业务 方法，此时应该有 handler 和 conn 是绑定的
+			dealConn := NewConnection(conn, cid, s.msgHandler)
+			cid++
+
+			// 我们这里暂时做一个回显服务
+			go dealConn.Start()
+
+		}
+	}()
+
 }
 
 // Stop 停止服务
